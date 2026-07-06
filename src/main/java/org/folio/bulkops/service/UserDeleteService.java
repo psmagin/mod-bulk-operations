@@ -46,8 +46,8 @@ public class UserDeleteService {
         while (iterator.hasNext()) {
           var user = iterator.next();
           deleteUser(bulkOperation, user);
-          bulkOperation.setCommittedNumOfRecords(bulkOperation.getCommittedNumOfRecords() + 1);
-          if (bulkOperation.getCommittedNumOfRecords() % OPERATION_UPDATING_STEP == 0) {
+          bulkOperation.setProcessedNumOfRecords(bulkOperation.getProcessedNumOfRecords() + 1);
+          if (bulkOperation.getProcessedNumOfRecords() % OPERATION_UPDATING_STEP == 0) {
             bulkOperationRepository.save(bulkOperation);
           }
         }
@@ -67,8 +67,10 @@ public class UserDeleteService {
   private void deleteUser(BulkOperation bulkOperation, User user) {
     try {
       userDeleteProcessor.delete(user);
+      bulkOperation.setCommittedNumOfRecords(bulkOperation.getCommittedNumOfRecords() + 1);
     } catch (Exception e) {
-      errorService.saveError(bulkOperation.getId(), user.getId(), e.getMessage(), ErrorType.ERROR);
+      errorService.saveError(bulkOperation.getId(),
+          user.getIdentifier(bulkOperation.getIdentifierType()), e.getMessage(), ErrorType.ERROR);
     }
   }
 
