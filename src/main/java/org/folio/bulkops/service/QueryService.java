@@ -1,6 +1,7 @@
 package org.folio.bulkops.service;
 
 import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 import static org.folio.bulkops.domain.dto.ApproachType.QUERY;
 import static org.folio.bulkops.domain.dto.OperationStatusType.CANCELLED;
 import static org.folio.bulkops.domain.dto.OperationStatusType.COMPLETED_WITH_ERRORS;
@@ -10,6 +11,7 @@ import static org.folio.bulkops.domain.dto.OperationStatusType.RETRIEVING_RECORD
 import static org.folio.bulkops.domain.dto.OperationStatusType.SAVED_IDENTIFIERS;
 import static org.folio.bulkops.util.Constants.ERROR_MATCHING_FILE_NAME_PREFIX;
 import static org.folio.bulkops.util.Constants.ERROR_STARTING_BULK_OPERATION;
+import static org.folio.bulkops.util.Constants.LINKED_DATA_SOURCE_IS_NOT_SUPPORTED;
 import static org.folio.bulkops.util.Constants.NEW_LINE_SEPARATOR;
 import static org.folio.bulkops.util.Constants.NO_MARC_CONTENT;
 import static org.folio.bulkops.util.Utils.getMatchedFileName;
@@ -44,6 +46,7 @@ import org.folio.bulkops.domain.bean.HoldingsRecord;
 import org.folio.bulkops.domain.bean.Item;
 import org.folio.bulkops.domain.bean.StateType;
 import org.folio.bulkops.domain.dto.ApproachType;
+import org.folio.bulkops.domain.dto.EntityType;
 import org.folio.bulkops.domain.entity.BulkOperation;
 import org.folio.bulkops.domain.entity.BulkOperationExecutionContent;
 import org.folio.bulkops.exception.MarcValidationException;
@@ -318,7 +321,21 @@ public class QueryService {
         if (operation.getProcessedNumOfRecords() % STATISTICS_UPDATING_STEP != 0) {
           updateOperationExecutionStatus(operation);
         }
+
         errorService.saveErrorsAfterQuery(bulkOperationExecutionContents, operation);
+
+        if (nonNull(writerForTriggeringCsvFile)
+            && EntityType.INSTANCE.equals(operation.getEntityType())) {
+          var linkedDataIds =
+              bulkOperationExecutionContents.stream()
+                  .filter(
+                      executionContent ->
+                          LINKED_DATA_SOURCE_IS_NOT_SUPPORTED.equals(
+                              executionContent.getErrorMessage()))
+                  .map(BulkOperationExecutionContent::getIdentifier)
+                  .collect(Collectors.joining(NEW_LINE_SEPARATOR));
+          writerForTriggeringCsvFile.write(linkedDataIds);
+        }
       }
     } finally {
       if (writerForTriggeringCsvFile != null) {
