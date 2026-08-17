@@ -67,6 +67,7 @@ import tools.jackson.databind.ObjectMapper;
 public class QueryService {
   public static final String QUERY_FILENAME_TEMPLATE = "%1$s/Query-%1$s.csv";
   private static final int STATISTICS_UPDATING_STEP = 100;
+  private static final int END_OF_STREAM = -1;
 
   private final BulkOperationRepository bulkOperationRepository;
   private final ErrorService errorService;
@@ -200,8 +201,11 @@ public class QueryService {
           operation,
           bulkOperationExecutionContents);
 
-      if (operation.getMatchedNumOfRecords() > 0) {
+      if (!isEmptyFile(triggeringCsvFileName)) {
         operation.setLinkToTriggeringCsvFile(triggeringCsvFileName);
+      }
+
+      if (operation.getMatchedNumOfRecords() > 0) {
         operation.setLinkToMatchedRecordsCsvFile(matchedCsvFileName);
         operation.setLinkToMatchedRecordsJsonFile(matchedJsonFileName);
         operation.setStatus(DATA_MODIFICATION);
@@ -220,6 +224,14 @@ public class QueryService {
               operation.getId(), ERROR_MATCHING_FILE_NAME_PREFIX, e.getMessage());
       operation.setLinkToMatchedRecordsErrorsCsvFile(linkToMatchingErrorsFile);
       bulkOperationRepository.save(operation);
+    }
+  }
+
+  private boolean isEmptyFile(String filename) {
+    try (var is = remoteFileSystemClient.get(filename)) {
+      return END_OF_STREAM == is.read();
+    } catch (IOException e) {
+      return true;
     }
   }
 
