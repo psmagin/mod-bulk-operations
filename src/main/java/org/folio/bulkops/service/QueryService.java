@@ -230,7 +230,8 @@ public class QueryService {
   private boolean isEmptyFile(String filename) {
     try (var is = remoteFileSystemClient.get(filename)) {
       return END_OF_STREAM == is.read();
-    } catch (IOException e) {
+    } catch (Exception e) {
+      log.error("Triggering file {} could not be read", filename, e);
       return true;
     }
   }
@@ -346,7 +347,9 @@ public class QueryService {
                               executionContent.getErrorMessage()))
                   .map(BulkOperationExecutionContent::getIdentifier)
                   .collect(Collectors.joining(NEW_LINE_SEPARATOR));
-          writerForTriggeringCsvFile.write(linkedDataIds);
+          if (!linkedDataIds.isEmpty()) {
+            writerForTriggeringCsvFile.write(linkedDataIds);
+          }
         }
       }
     } finally {
